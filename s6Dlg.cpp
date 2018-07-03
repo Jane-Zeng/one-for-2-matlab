@@ -12,6 +12,8 @@
 #include "mex.h"
 #include "matrix.h"
 #include <HalconCpp.h>
+#include "sanxi.h"
+#pragma comment(lib,"sanxi.lib")
 using namespace std;
 
 #ifdef _DEBUG
@@ -90,6 +92,9 @@ BEGIN_MESSAGE_MAP(Cs6Dlg, CDialogEx)
 	ON_BN_CLICKED(IDC_kqxj, &Cs6Dlg::OnBnClickedkqxj)
 	ON_BN_CLICKED(IDC_ztxj, &Cs6Dlg::OnBnClickedztxj)
 	ON_BN_CLICKED(IDC_gbxj, &Cs6Dlg::OnBnClickedgbxj)
+	ON_BN_CLICKED(IDC_xjwc, &Cs6Dlg::OnBnClickedxjwc)
+	ON_BN_CLICKED(IDC_jqrzd, &Cs6Dlg::OnBnClickedjqrzd)
+	ON_BN_CLICKED(IDC_tzzd, &Cs6Dlg::OnBnClickedtzzd)
 END_MESSAGE_MAP()
 
 
@@ -129,6 +134,12 @@ BOOL Cs6Dlg::OnInitDialog()
 	GetCom();
 	int nselect=m_combocom.GetCurSel()+1;
 	m_comm.put_CommPort(short(nselect));
+
+	if(!sanxiInitialize())
+	{
+		cout<<"could not initialize!"<<endl;
+		exit(0);
+	}
 
 	return TRUE;  // 除非将焦点设置到控件，否则返回 TRUE
 }
@@ -674,66 +685,6 @@ void Cs6Dlg::OnOK()
 	//CDialogEx::OnOK();
 }
 
-CString str1,str2,str3,st1,st2,st3,s[16];
-	mwArray syjz(4,4,mxDOUBLE_CLASS);
-	mwArray jggcs(3,2,mxDOUBLE_CLASS);
-double a[6],aa[3][2],b[16],bb[4][4],and[4][4];
-void Cs6Dlg::OnBnClickedsyjz()
-{
-	// TODO: 在此添加控件通知处理程序代码
-	for(int i=0;i<16;i++)
-	{
-	   GetDlgItem(IDC_EDIT1+i)->GetWindowTextW(s[i]);
-	    b[i]=_wtof(s[i]);                  //变成数字
-	}
-	syjz.SetData(b,16);
-	for(int i=0;i<4;i++)
-	{
-		for(int j=0;j<4;j++)
-		{
-		   bb[i][j]=syjz.Get(2,i+1,j+1);
-		   bb[i][j]=bb[i][j]*2;
-		   st1.Format(_T("%.5f"),bb[i][j]);
-	       str1+=st1+' ';
-		}
-	   str1+="\r\n";
-	}
-	for(int i=0;i<16;i++)
-	{
-	   SetDlgItemText(IDC_EDIT1+i,_T(""));
-	}
-	SetDlgItemText(IDC_EDIT17,str1);
-	str1="";
-}
-
-void Cs6Dlg::OnBnClickedjggcs()
-{
-	// TODO: 在此添加控件通知处理程序代码
-	for(int i=0;i<6;i++)
-	{
-	   GetDlgItem(IDC_EDIT1+i)->GetWindowTextW(s[i]);
-	    a[i]=_wtof(s[i]);                  //变成数字
-	}
-	jggcs.SetData(a,6);
-	for(int i=0;i<3;i++)
-	{
-		for(int j=0;j<2;j++)
-		{
-		   aa[i][j]=jggcs.Get(2,i+1,j+1);
-		   aa[i][j]=aa[i][j]+2;
-		   st2.Format(_T("%.5f"),aa[i][j]);
-	       str2+=st2+' ';
-		}
-	   str2+="\r\n";
-	}
-	for(int i=0;i<6;i++)
-	{
-	   SetDlgItemText(IDC_EDIT1+i,_T(""));
-	}
-	SetDlgItemText(IDC_EDIT17,str2);
-	str2="";
-}
-
 HObject ho_Image1,ho_Image2; 
 HTuple hv_AcqHandle1,hv_AcqHandle2;
 HTuple hv_Width1,hv_Height1,hv_Width2,hv_Height2; 
@@ -786,7 +737,7 @@ UINT Cs6Dlg::kqxjthd(LPVOID AParam)
            GrabImageStart(hv_AcqHandle1,-1);
            GrabImageAsync(&ho_Image1, hv_AcqHandle1, -1);
 
-		   pointer1->GetDlgItem(IDC_EDIT1)->GetWindowTextW(teststr);
+		   pointer1->GetDlgItem(IDC_EDIT19)->GetWindowTextW(teststr);
 		   if(teststr!="")
 		    {
 			   //hv_filename = ("C:/Users/Administrator/Desktop/capture/maybeuseful/t1.png");
@@ -813,10 +764,13 @@ UINT Cs6Dlg::kqxjthd(LPVOID AParam)
 void Cs6Dlg::OnBnClickedztxj()
 {
 	// TODO: 在此添加控件通知处理程序代码
+	if(kqxjthread)
+	{
 	if(!threadpause)
 	{
 		kqxjthread->SuspendThread();//挂起、暂停线程
 		threadpause=true;
+	}
 	}
 }
 
@@ -828,4 +782,175 @@ void Cs6Dlg::OnBnClickedgbxj()
 		threadpause=false;
 		::PostThreadMessageA(kqxjthread->m_nThreadID,WM_QUIT,0,0);
 	}
+}
+
+CString str1,str2,str3,st1,st2,st3,s[16];
+	mwArray syjz(4,4,mxDOUBLE_CLASS);
+	mwArray jggcs(3,2,mxDOUBLE_CLASS);
+	mwArray P(1,3,mxDOUBLE_CLASS);
+	mwArray N(1,3,mxDOUBLE_CLASS);
+double a[6],aa[3][2],b[16],bb[4][4],PP[3],NN[3];
+void Cs6Dlg::OnBnClickedjggcs()
+{
+	// TODO: 在此添加控件通知处理程序代码
+	for(int i=0;i<6;i++)//横的
+	{
+	   GetDlgItem(IDC_EDIT1+i)->GetWindowTextW(s[i]);
+	    a[i]=_wtof(s[i]);                  //变成数字
+	}
+	jggcs.SetData(a,6);
+	for(int i=0;i<3;i++)
+		{
+		   PP[i]=jggcs.Get(2,i+1,1);
+		   PP[i]=PP[i]+2;
+		   st1.Format(_T("%.5f"),PP[i]);
+	       str1+=st1+' ';
+		}
+	P.SetData(PP,3);
+	str1+="\r\n";
+	for(int i=0;i<3;i++)
+		{
+		   NN[i]=jggcs.Get(2,i+1,2);
+		   NN[i]=NN[i]+2;
+		   st1.Format(_T("%.5f"),NN[i]);
+	       str1+=st1+' ';
+		}
+	N.SetData(NN,3);
+	str1+="\r\n";
+	for(int i=0;i<6;i++)
+	{
+	   SetDlgItemText(IDC_EDIT1+i,_T(""));
+	}
+    SetDlgItemText(IDC_EDIT17,str1);
+	str1="";
+	
+	//for(int i=0;i<6;i++) //竖的
+ //	{ 
+	//   GetDlgItem(IDC_EDIT1+i)->GetWindowTextW(s[i]); 
+	//    a[i]=_wtof(s[i]);                  //变成数字 
+	//} 
+	//jggcs.SetData(a,6); 
+ //	for(int i=0;i<3;i++) 
+ //	{ 
+ //		for(int j=0;j<2;j++) 
+ //		{ 
+ //		   aa[i][j]=jggcs.Get(2,i+1,j+1); 
+ //		   aa[i][j]=aa[i][j]+2; 
+ //		   st2.Format(_T("%.5f"),aa[i][j]); 
+ //	       str2+=st2+' '; 
+ //		} 
+ //	   str2+="\r\n"; 
+ //	} 
+ //	for(int i=0;i<6;i++) 
+ //	{ 
+ //	   SetDlgItemText(IDC_EDIT1+i,_T("")); 
+ //	} 
+ //	SetDlgItemText(IDC_EDIT17,str2); 
+ //	str2=""; 
+
+}
+void Cs6Dlg::OnBnClickedsyjz()
+{
+	// TODO: 在此添加控件通知处理程序代码
+	for(int i=0;i<16;i++)
+	{
+	   GetDlgItem(IDC_EDIT1+i)->GetWindowTextW(s[i]);
+	    b[i]=_wtof(s[i]);                  //变成数字
+	}
+	syjz.SetData(b,16);
+	for(int i=0;i<4;i++)
+	{
+		for(int j=0;j<4;j++)
+		{
+		   bb[i][j]=syjz.Get(2,i+1,j+1);
+		   bb[i][j]=bb[i][j]*2;
+		   st2.Format(_T("%.5f"),bb[i][j]);
+	       str2+=st2+' ';
+		}
+	   str2+="\r\n";
+	}
+	for(int i=0;i<16;i++)
+	{
+	   SetDlgItemText(IDC_EDIT1+i,_T(""));
+	}
+	SetDlgItemText(IDC_EDIT17,str2);
+	str2="";
+}
+
+void Cs6Dlg::OnBnClickedxjwc()
+{
+	// TODO: 在此添加控件通知处理程序代码
+}
+
+CString rstr1,rstr2,rstr3,rst1,rst2,rst3,rs[16];
+	mwArray pa(1,3,mxDOUBLE_CLASS);
+	mwArray pb(1,3,mxDOUBLE_CLASS);
+	mwArray Q(1,6,mxDOUBLE_CLASS);
+	mwArray T(4,4,mxDOUBLE_CLASS);
+double paa[3],pbb[3],p[6],q[6];
+bool rthread=true;
+CWinThread *jqrzdthread;
+CString rteststr;
+void Cs6Dlg::OnBnClickedjqrzd()
+{
+	// TODO: 在此添加控件通知处理程序代码
+	jqrzdthread=AfxBeginThread(jqrzdthd,this);
+}
+UINT Cs6Dlg::jqrzdthd(LPVOID BParam)
+{
+	Cs6Dlg* pointer2;
+	pointer2 = (Cs6Dlg*)BParam;
+	
+	while (rthread)
+       {
+		  pointer2->GetDlgItem(IDC_EDIT20)->GetWindowTextW(rteststr);
+	      if(rteststr!="")
+	       {
+		     /*for(int i=0;i<6;i++)
+	            {
+		          AfxExtractSubString(rstr1,rteststr,i,' ');
+		          p[i]=_wtof(rstr1); 
+	            }
+	          for(int i=0;i<3;i++)
+		        {
+		          paa[i]=p[i];
+		          pbb[i]=p[i+3];
+	            }
+	          pa.SetData(paa,3);
+	          pb.SetData(pbb,3);*/
+	 
+		      pointer2->GetDlgItem(IDC_EDIT19)->GetWindowTextW(rstr2);//读关节角
+	          for(int i=0;i<6;i++)
+	           {
+	              AfxExtractSubString(rst1,rstr2,i,' ');//字符分割
+	              AfxExtractSubString(rst2,rst1,1,'=');
+		          q[i]=_wtof(rst2);                   //变成数字
+	            }
+	          Q.SetData(q,6);
+	          sanxi(1,T,Q);
+			  pointer2->SetDlgItemText(IDC_EDIT20,_T(""));
+	          CString path(_T("C:\\Users\\Administrator\\Desktop\\capture\\maybeuseful\\1.bmp"));
+	          CImage image;
+	          image.Load(path);
+	          CRect rec,rep;
+	          ::SetForegroundWindow(pointer2->m_hWnd);//对话框始终最前
+	          CWnd *pwnd=pointer2->GetDlgItem(IDC_SMATLAB);//获取控件句柄
+	          pwnd->GetClientRect(rec);             //指向区域
+	          CDC *pdc=pointer2->GetDlgItem(IDC_SMATLAB)->GetDC();//获取picture的DC
+	          SetStretchBltMode(pdc->m_hDC,STRETCH_HALFTONE);//设置在指定设备内容中的伸展模式，解决位图失真
+	          rep=CRect(rec.TopLeft(),CSize((int)rec.Width(),(int)rec.Height()));
+	          image.Draw(pdc->m_hDC,rep);
+	          image.Destroy();
+	          pwnd->ReleaseDC(pdc); 
+	      }
+		Sleep(1);
+	  }
+    return 0;
+}
+
+void Cs6Dlg::OnBnClickedtzzd()
+{
+	// TODO: 在此添加控件通知处理程序代码
+	rthread=false;
+	WaitForSingleObject( jqrzdthread->m_hThread, INFINITE );
 }
