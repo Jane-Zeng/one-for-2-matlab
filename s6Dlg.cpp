@@ -11,8 +11,11 @@
 #include "mclcppclass.h"
 #include "mex.h"
 #include "matrix.h"
+#include <iostream>
 #include <HalconCpp.h>
 #include "sanxi.h"
+#include "fzuobiao.h"
+#pragma comment(lib,"fzuobiao.lib")
 #pragma comment(lib,"sanxi.lib")
 using namespace std;
 
@@ -137,10 +140,14 @@ BOOL Cs6Dlg::OnInitDialog()
 
 	if(!sanxiInitialize())
 	{
-		cout<<"could not initialize!"<<endl;
+		cout<<"could not initialize sanxi!"<<endl;
 		exit(0);
 	}
-
+	if(!fzuobiaoInitialize())
+	{
+		cout<<"could not initialize fzuobiao!"<<endl;
+		exit(0);
+	}
 	return TRUE;  // 除非将焦点设置到控件，否则返回 TRUE
 }
 
@@ -785,11 +792,12 @@ void Cs6Dlg::OnBnClickedgbxj()
 }
 
 CString str1,str2,str3,st1,st2,st3,s[16];
-	mwArray syjz(4,4,mxDOUBLE_CLASS);
+	mwArray xjwc(4,4,mxDOUBLE_CLASS);
 	mwArray jggcs(3,2,mxDOUBLE_CLASS);
-	mwArray P(1,3,mxDOUBLE_CLASS);
-	mwArray N(1,3,mxDOUBLE_CLASS);
-double a[6],aa[3][2],b[16],bb[4][4],PP[3],NN[3];
+	mwArray syjz(4,4,mxDOUBLE_CLASS);
+	mwArray CENTERP(1,3,mxDOUBLE_CLASS);
+	mwArray CENTERPN(1,3,mxDOUBLE_CLASS);
+double a[6],b[16],bb[4][4],c[16],cc[4][4],PP[3],NN[3];
 void Cs6Dlg::OnBnClickedjggcs()
 {
 	// TODO: 在此添加控件通知处理程序代码
@@ -802,27 +810,25 @@ void Cs6Dlg::OnBnClickedjggcs()
 	for(int i=0;i<3;i++)
 		{
 		   PP[i]=jggcs.Get(2,i+1,1);
-		   PP[i]=PP[i]+2;
-		   st1.Format(_T("%.5f"),PP[i]);
-	       str1+=st1+' ';
+		   /*st1.Format(_T("%.5f"),PP[i]);
+	       str1+=st1+' ';*/
 		}
-	P.SetData(PP,3);
-	str1+="\r\n";
+	CENTERP.SetData(PP,3);
+	//str1+="\r\n";
 	for(int i=0;i<3;i++)
 		{
 		   NN[i]=jggcs.Get(2,i+1,2);
-		   NN[i]=NN[i]+2;
-		   st1.Format(_T("%.5f"),NN[i]);
-	       str1+=st1+' ';
+		   /*st1.Format(_T("%.5f"),NN[i]);
+	       str1+=st1+' ';*/
 		}
-	N.SetData(NN,3);
-	str1+="\r\n";
+	CENTERPN.SetData(NN,3);
+	//str1+="\r\n";
 	for(int i=0;i<6;i++)
 	{
 	   SetDlgItemText(IDC_EDIT1+i,_T(""));
 	}
-    SetDlgItemText(IDC_EDIT17,str1);
-	str1="";
+    /*SetDlgItemText(IDC_EDIT17,str1);
+	str1="";*/
 	
 	//for(int i=0;i<6;i++) //竖的
  //	{ 
@@ -858,39 +864,66 @@ void Cs6Dlg::OnBnClickedsyjz()
 	    b[i]=_wtof(s[i]);                  //变成数字
 	}
 	syjz.SetData(b,16);
-	for(int i=0;i<4;i++)
+	/*for(int i=0;i<4;i++)
 	{
 		for(int j=0;j<4;j++)
 		{
 		   bb[i][j]=syjz.Get(2,i+1,j+1);
-		   bb[i][j]=bb[i][j]*2;
 		   st2.Format(_T("%.5f"),bb[i][j]);
 	       str2+=st2+' ';
 		}
 	   str2+="\r\n";
-	}
+	}*/
 	for(int i=0;i<16;i++)
 	{
 	   SetDlgItemText(IDC_EDIT1+i,_T(""));
 	}
-	SetDlgItemText(IDC_EDIT17,str2);
-	str2="";
+	/*SetDlgItemText(IDC_EDIT17,str2);
+	str2="";*/
 }
 
 void Cs6Dlg::OnBnClickedxjwc()
 {
 	// TODO: 在此添加控件通知处理程序代码
+	for(int i=0;i<16;i++)
+	{
+	   GetDlgItem(IDC_EDIT1+i)->GetWindowTextW(s[i]);
+	    c[i]=_wtof(s[i]);                  //变成数字
+	}
+	xjwc.SetData(c,16);
+	/*for(int i=0;i<4;i++)
+	{
+		for(int j=0;j<4;j++)
+		{
+		   cc[i][j]=xjwc.Get(2,i+1,j+1);
+		   st3.Format(_T("%.5f"),cc[i][j]);
+	       str3+=st3+' ';
+		}
+	   str3+="\r\n";
+	}*/
+	for(int i=0;i<16;i++)
+	{
+	   SetDlgItemText(IDC_EDIT1+i,_T(""));
+	}
+	/*SetDlgItemText(IDC_EDIT17,str3);
+	str3="";*/
 }
 
 CString rstr1,rstr2,rstr3,rst1,rst2,rst3,rs[16];
+CString rteststr;
 	mwArray pa(1,3,mxDOUBLE_CLASS);
 	mwArray pb(1,3,mxDOUBLE_CLASS);
 	mwArray Q(1,6,mxDOUBLE_CLASS);
 	mwArray T(4,4,mxDOUBLE_CLASS);
+	mwArray FX(1,1,mxDOUBLE_CLASS);
+	mwArray FY(1,1,mxDOUBLE_CLASS);
+	mwArray FZ(1,1,mxDOUBLE_CLASS);
+	
 double paa[3],pbb[3],p[6],q[6];
+double x,y,z;
 bool rthread=true;
 CWinThread *jqrzdthread;
-CString rteststr;
+
 void Cs6Dlg::OnBnClickedjqrzd()
 {
 	// TODO: 在此添加控件通知处理程序代码
@@ -906,10 +939,10 @@ UINT Cs6Dlg::jqrzdthd(LPVOID BParam)
 		  pointer2->GetDlgItem(IDC_EDIT20)->GetWindowTextW(rteststr);
 	      if(rteststr!="")
 	       {
-		     /*for(int i=0;i<6;i++)
+		      for(int i=0;i<6;i++)//读图像测量点
 	            {
-		          AfxExtractSubString(rstr1,rteststr,i,' ');
-		          p[i]=_wtof(rstr1); 
+		          AfxExtractSubString(rst1,rteststr,i,' ');
+		          p[i]=_wtof(rst1); 
 	            }
 	          for(int i=0;i<3;i++)
 		        {
@@ -917,13 +950,13 @@ UINT Cs6Dlg::jqrzdthd(LPVOID BParam)
 		          pbb[i]=p[i+3];
 	            }
 	          pa.SetData(paa,3);
-	          pb.SetData(pbb,3);*/
-	 
+	          pb.SetData(pbb,3);
+			  
 		      pointer2->GetDlgItem(IDC_EDIT19)->GetWindowTextW(rstr2);//读关节角
 	          for(int i=0;i<6;i++)
 	           {
-	              AfxExtractSubString(rst1,rstr2,i,' ');//字符分割
-	              AfxExtractSubString(rst2,rst1,1,'=');
+	              AfxExtractSubString(rstr1,rstr2,i,' ');//字符分割
+	              AfxExtractSubString(rst2,rstr1,1,'=');
 		          q[i]=_wtof(rst2);                   //变成数字
 	            }
 	          Q.SetData(q,6);
@@ -941,7 +974,15 @@ UINT Cs6Dlg::jqrzdthd(LPVOID BParam)
 	          rep=CRect(rec.TopLeft(),CSize((int)rec.Width(),(int)rec.Height()));
 	          image.Draw(pdc->m_hDC,rep);
 	          image.Destroy();
-	          pwnd->ReleaseDC(pdc); 
+	          pwnd->ReleaseDC(pdc);
+
+			  fzuobiao(3,FX,FY,FZ,Q,syjz,xjwc,pa,pb,CENTERP,CENTERPN);
+			  x=FX.Get(1,1);y=FY.Get(1,1);z=FZ.Get(1,1);
+			  rst3.Format(_T("%.5f"),x);rstr3+=rst3+' ';
+			  rst3.Format(_T("%.5f"),y);rstr3+=rst3+' ';
+	          rst3.Format(_T("%.5f"),z);rstr3+=rst3+' ';
+			  pointer2->SetDlgItemText(IDC_EDIT21,rstr3);
+			  rstr3="";
 	      }
 		Sleep(1);
 	  }
