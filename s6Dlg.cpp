@@ -1,7 +1,7 @@
 
 // s6Dlg.cpp : 实现文件
 //
-
+#include <vector>
 #include "stdafx.h"
 #include "s6.h"
 #include "s6Dlg.h"
@@ -15,9 +15,14 @@
 #include <HalconCpp.h>
 #include "sanxi.h"
 #include "fzuobiao.h"
+#include "fquxian.h"
+#include <HalconCpp.h>
+#pragma comment(lib,"fquxian.lib")
 #pragma comment(lib,"fzuobiao.lib")
 #pragma comment(lib,"sanxi.lib")
 using namespace std;
+using namespace HalconCpp;
+using std::vector;
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
@@ -98,6 +103,7 @@ BEGIN_MESSAGE_MAP(Cs6Dlg, CDialogEx)
 	ON_BN_CLICKED(IDC_xjwc, &Cs6Dlg::OnBnClickedxjwc)
 	ON_BN_CLICKED(IDC_jqrzd, &Cs6Dlg::OnBnClickedjqrzd)
 	ON_BN_CLICKED(IDC_tzzd, &Cs6Dlg::OnBnClickedtzzd)
+	ON_BN_CLICKED(IDC_quxian, &Cs6Dlg::OnBnClickedquxian)
 END_MESSAGE_MAP()
 
 
@@ -146,6 +152,11 @@ BOOL Cs6Dlg::OnInitDialog()
 	if(!fzuobiaoInitialize())
 	{
 		cout<<"could not initialize fzuobiao!"<<endl;
+		exit(0);
+	}
+	if(!fquxianInitialize())
+	{
+		cout<<"could not initialize fquxian!"<<endl;
 		exit(0);
 	}
 	return TRUE;  // 除非将焦点设置到控件，否则返回 TRUE
@@ -692,105 +703,6 @@ void Cs6Dlg::OnOK()
 	//CDialogEx::OnOK();
 }
 
-HObject ho_Image1,ho_Image2; 
-HTuple hv_AcqHandle1,hv_AcqHandle2;
-HTuple hv_Width1,hv_Height1,hv_Width2,hv_Height2; 
-HTuple hv_WindowHandle1,hv_WindowHandle2;
-HTuple hv_filename;
-
-bool thread=true;
-bool threadpause=false;
-CWinThread *kqxjthread;
-CString teststr;
-
-void Cs6Dlg::OnBnClickedkqxj()
-{
-	// TODO: 在此添加控件通知处理程序代码
-	if(threadpause)//暂停
-	{
-		threadpause=false;
-		kqxjthread->ResumeThread();//则继续
-	}
-	else
-	{
-		kqxjthread=AfxBeginThread(kqxjthd,this);//开启线程
-	}
-}
-UINT Cs6Dlg::kqxjthd(LPVOID AParam)
-{
-	Cs6Dlg* pointer1;
-	pointer1 = (Cs6Dlg*)AParam;
-	CRect rtWindow1; 
-    HWND hImgWnd1 =pointer1->GetDlgItem(IDC_SXJTX)->m_hWnd; 
-    pointer1->GetDlgItem(IDC_SXJTX)->GetClientRect(&rtWindow1);
-    OpenWindow(rtWindow1.left, rtWindow1.top, rtWindow1.Width(), rtWindow1.Height(), (Hlong)hImgWnd1, "visible", "", &hv_WindowHandle1); 
-    try
-     {
-        OpenFramegrabber("GigEVision", 0, 0, 0, 0, 0, 0, "default", -1, "default", -1, 
-        "false", "default", "0223823012", 0, -1, &hv_AcqHandle1);
-	  while (thread)
-       {
-		   MSG msgthd;
-		   if(::PeekMessageA(&msgthd,NULL,0,0,PM_REMOVE))
-		   {
-			   if(msgthd.message==WM_QUIT)
-			   {return 0;}
-			   else
-			   {
-				   ::TranslateMessage(&msgthd);
-				   ::DispatchMessageA(&msgthd);
-			   }
-		   }
-           GrabImageStart(hv_AcqHandle1,-1);
-           GrabImageAsync(&ho_Image1, hv_AcqHandle1, -1);
-
-		   pointer1->GetDlgItem(IDC_EDIT19)->GetWindowTextW(teststr);
-		   if(teststr!="")
-		    {
-			   //hv_filename = ("C:/Users/Administrator/Desktop/capture/maybeuseful/t1.png");
-               WriteImage(ho_Image1,"png",0,"test1");
-			   pointer1->SetDlgItemText(IDC_EDIT1,_T(""));
-			   //////！！！！！！！！！！！！！
-			   //处理图片得数据！！！！！！！！！！！！！
-		    }
-		   GetImageSize(ho_Image1, &hv_Width1, &hv_Height1);
-		   SetPart(hv_WindowHandle1, 0, 0,hv_Height1, hv_Width1 );
-           HDevWindowStack::Push(hv_WindowHandle1);
-           DispObj(ho_Image1, hv_WindowHandle1); 
-           //Sleep(2000);//非注释后会造成卡顿
-	       ho_Image1.GenEmptyObj();
-	    }
-     }
-	catch(HException &except)
-     {
-	    AfxMessageBox(CString(except.ErrorMessage())); 
-     }
-	return 0;
-}
-
-void Cs6Dlg::OnBnClickedztxj()
-{
-	// TODO: 在此添加控件通知处理程序代码
-	if(kqxjthread)
-	{
-	if(!threadpause)
-	{
-		kqxjthread->SuspendThread();//挂起、暂停线程
-		threadpause=true;
-	}
-	}
-}
-
-void Cs6Dlg::OnBnClickedgbxj()
-{
-	// TODO: 在此添加控件通知处理程序代码
-	if(kqxjthread)
-	{
-		threadpause=false;
-		::PostThreadMessageA(kqxjthread->m_nThreadID,WM_QUIT,0,0);
-	}
-}
-
 CString str1,str2,str3,st1,st2,st3,s[16];
 	mwArray xjwc(4,4,mxDOUBLE_CLASS);
 	mwArray jggcs(3,2,mxDOUBLE_CLASS);
@@ -918,7 +830,11 @@ CString rteststr;
 	mwArray FX(1,1,mxDOUBLE_CLASS);
 	mwArray FY(1,1,mxDOUBLE_CLASS);
 	mwArray FZ(1,1,mxDOUBLE_CLASS);
-	
+	mwArray ctw(4,4,mxDOUBLE_CLASS);
+vector<double> spointx;
+vector<double> spointy;
+vector<double> spointz;
+int num;
 double paa[3],pbb[3],p[6],q[6];
 double x,y,z;
 bool rthread=true;
@@ -951,33 +867,34 @@ UINT Cs6Dlg::jqrzdthd(LPVOID BParam)
 	            }
 	          pa.SetData(paa,3);
 	          pb.SetData(pbb,3);
-			  
-		      pointer2->GetDlgItem(IDC_EDIT19)->GetWindowTextW(rstr2);//读关节角
-	          for(int i=0;i<6;i++)
-	           {
-	              AfxExtractSubString(rstr1,rstr2,i,' ');//字符分割
-	              AfxExtractSubString(rst2,rstr1,1,'=');
-		          q[i]=_wtof(rst2);                   //变成数字
-	            }
+		
+		      //pointer2->GetDlgItem(IDC_EDIT19)->GetWindowTextW(rstr2);//读关节角
+	       //   for(int i=0;i<6;i++)
+	       //    {
+	       //       AfxExtractSubString(rstr1,rstr2,i,' ');//字符分割
+	       //       AfxExtractSubString(rst2,rstr1,1,'=');
+		      //    q[i]=_wtof(rst2);                   //变成数字
+	       //     }
 	          Q.SetData(q,6);
 	          sanxi(1,T,Q);
 			  pointer2->SetDlgItemText(IDC_EDIT20,_T(""));
-	          CString path(_T("C:\\Users\\Administrator\\Desktop\\capture\\maybeuseful\\1.bmp"));
-	          CImage image;
-	          image.Load(path);
-	          CRect rec,rep;
+	          CString path1(_T("C:\\Users\\Administrator\\Desktop\\capture\\maybeuseful\\1.bmp"));
+	          CImage image1;
+	          image1.Load(path1);
+	          CRect rec1,rep1;
 	          ::SetForegroundWindow(pointer2->m_hWnd);//对话框始终最前
-	          CWnd *pwnd=pointer2->GetDlgItem(IDC_SMATLAB);//获取控件句柄
-	          pwnd->GetClientRect(rec);             //指向区域
-	          CDC *pdc=pointer2->GetDlgItem(IDC_SMATLAB)->GetDC();//获取picture的DC
-	          SetStretchBltMode(pdc->m_hDC,STRETCH_HALFTONE);//设置在指定设备内容中的伸展模式，解决位图失真
-	          rep=CRect(rec.TopLeft(),CSize((int)rec.Width(),(int)rec.Height()));
-	          image.Draw(pdc->m_hDC,rep);
-	          image.Destroy();
-	          pwnd->ReleaseDC(pdc);
+	          CWnd *pwnd1=pointer2->GetDlgItem(IDC_SMATLAB);//获取控件句柄
+	          pwnd1->GetClientRect(rec1);             //指向区域
+	          CDC *pdc1=pointer2->GetDlgItem(IDC_SMATLAB)->GetDC();//获取picture的DC
+	          SetStretchBltMode(pdc1->m_hDC,STRETCH_HALFTONE);//设置在指定设备内容中的伸展模式，解决位图失真
+	          rep1=CRect(rec1.TopLeft(),CSize((int)rec1.Width(),(int)rec1.Height()));
+	          image1.Draw(pdc1->m_hDC,rep1);
+	          image1.Destroy();
+	          pwnd1->ReleaseDC(pdc1);
 
-			  fzuobiao(3,FX,FY,FZ,Q,syjz,xjwc,pa,pb,CENTERP,CENTERPN);
+			  fzuobiao(4,FX,FY,FZ,ctw,Q,syjz,xjwc,pa,pb,CENTERP,CENTERPN);
 			  x=FX.Get(1,1);y=FY.Get(1,1);z=FZ.Get(1,1);
+			  spointx.push_back(x);spointy.push_back(y);spointz.push_back(z);
 			  rst3.Format(_T("%.5f"),x);rstr3+=rst3+' ';
 			  rst3.Format(_T("%.5f"),y);rstr3+=rst3+' ';
 	          rst3.Format(_T("%.5f"),z);rstr3+=rst3+' ';
@@ -989,9 +906,210 @@ UINT Cs6Dlg::jqrzdthd(LPVOID BParam)
     return 0;
 }
 
-void Cs6Dlg::OnBnClickedtzzd()
+void Cs6Dlg::OnBnClickedtzzd()//机器人停止自动
 {
 	// TODO: 在此添加控件通知处理程序代码
 	rthread=false;
 	WaitForSingleObject( jqrzdthread->m_hThread, INFINITE );
+}
+
+void xiangjizuobiao (HObject ho_image, HTuple hv_cameraparameter, HTuple *hv_pax, 
+    HTuple *hv_pay, HTuple *hv_paz, HTuple *hv_pbx, HTuple *hv_pby, HTuple *hv_pbz)
+{
+  HObject  ho_ImageMean, ho_Region, ho_RegionErosion;
+  HObject  ho_ImageReduced, ho_Skeleton, ho_cross;
+  HTuple  hv_Width, hv_Height, hv_Rows, hv_Columns;
+  HTuple  hv_minr, hv_indicesminr, hv_minrs, hv_mincs, hv_meanr;
+  HTuple  hv_meanc;
+
+  GetImageSize(ho_image, &hv_Width, &hv_Height);
+  MeanImage(ho_image, &ho_ImageMean, 151, 5);
+  Threshold(ho_ImageMean, &ho_Region, 170, 255);
+  ErosionCircle(ho_Region, &ho_RegionErosion, 12.5);
+  ReduceDomain(ho_image, ho_RegionErosion, &ho_ImageReduced);
+  Skeleton(ho_RegionErosion, &ho_Skeleton);
+  GetRegionPoints(ho_Skeleton, &hv_Rows, &hv_Columns);
+  hv_minr = hv_Rows.TupleMin();
+  TupleFind(hv_Rows, hv_minr, &hv_indicesminr);
+  hv_minrs = HTuple();
+  hv_mincs = HTuple();
+  hv_minrs = hv_minrs.TupleConcat(HTuple(hv_Rows[hv_indicesminr]));
+  hv_mincs = hv_mincs.TupleConcat(HTuple(hv_Columns[hv_indicesminr]));
+  hv_meanr = hv_minrs.TupleMean();
+  hv_meanc = hv_mincs.TupleMean();
+  GenCrossContourXld(&ho_cross, hv_meanr, hv_meanc, 26, 0.785398);
+  GetLineOfSight(hv_meanr, hv_meanc, hv_cameraparameter, &(*hv_pax), &(*hv_pay), 
+      &(*hv_paz), &(*hv_pbx), &(*hv_pby), &(*hv_pbz));
+  return;
+}
+
+HObject ho_Image1,ho_Image2; 
+HTuple hv_AcqHandle1,hv_AcqHandle2;
+HTuple hv_Width1,hv_Height1,hv_Width2,hv_Height2; 
+HTuple hv_WindowHandle1,hv_WindowHandle2;
+HTuple hv_filename;
+HTuple  hv_cameraparameter, hv_pax, hv_pay, hv_paz;
+HTuple  hv_pbx, hv_pby, hv_pbz;
+
+bool thread=true;
+bool threadpause=false;
+CWinThread *kqxjthread;
+CString teststr;
+CString tstr1,tstr2,tst1,tst2;
+
+void Cs6Dlg::OnBnClickedkqxj()
+{
+	// TODO: 在此添加控件通知处理程序代码
+	if(threadpause)//暂停
+	{
+		threadpause=false;
+		kqxjthread->ResumeThread();//则继续
+	}
+	else
+	{
+		kqxjthread=AfxBeginThread(kqxjthd,this);//开启线程
+	}
+}
+UINT Cs6Dlg::kqxjthd(LPVOID AParam)
+{
+	double pax,pay,paz,pbx,pby,pbz;
+	Cs6Dlg* pointer1;
+	pointer1 = (Cs6Dlg*)AParam;
+	CRect rtWindow1; 
+    HWND hImgWnd1 =pointer1->GetDlgItem(IDC_SXJTX)->m_hWnd; 
+    pointer1->GetDlgItem(IDC_SXJTX)->GetClientRect(&rtWindow1);
+    OpenWindow(rtWindow1.left, rtWindow1.top, rtWindow1.Width(), rtWindow1.Height(), (Hlong)hImgWnd1, "visible", "", &hv_WindowHandle1); 
+    try
+     {
+        OpenFramegrabber("GigEVision", 0, 0, 0, 0, 0, 0, "default", -1, "default", -1, 
+        "false", "default", "0223823012", 0, -1, &hv_AcqHandle1);
+	  while (thread)
+       {
+		   MSG msgthd;
+		   if(::PeekMessageA(&msgthd,NULL,0,0,PM_REMOVE))
+		   {
+			   if(msgthd.message==WM_QUIT)
+			   {return 0;}
+			   else
+			   {
+				   ::TranslateMessage(&msgthd);
+				   ::DispatchMessageA(&msgthd);
+			   }
+		   }
+           GrabImageStart(hv_AcqHandle1,-1);
+           GrabImageAsync(&ho_Image1, hv_AcqHandle1, -1);
+
+		   pointer1->GetDlgItem(IDC_EDIT19)->GetWindowTextW(teststr);
+		   if(teststr!=""&&bool(jqrzdthread))
+		    {
+			   //hv_filename = ("C:/Users/Administrator/Desktop/capture/maybeuseful/t1.png");
+			 //读关节角
+	          for(int i=0;i<6;i++)
+	           {
+	              AfxExtractSubString(tstr1,teststr,i,' ');//字符分割
+	              AfxExtractSubString(tst1,tstr1,1,'=');
+		          q[i]=_wtof(tst1);                   //变成数字
+	            }
+               WriteImage(ho_Image1,"png",0,"test1");
+			   pointer1->SetDlgItemText(IDC_EDIT19,_T(""));
+			   ReadImage(&ho_Image1, "test1");
+			   hv_cameraparameter.Clear();
+               hv_cameraparameter[0] = 0.0281691;
+               hv_cameraparameter[1] = 108.284;
+               hv_cameraparameter[2] = -2.92415e+006;
+               hv_cameraparameter[3] = 6.04338e+010;
+               hv_cameraparameter[4] = 0.0614391;
+               hv_cameraparameter[5] = -0.0131927;
+               hv_cameraparameter[6] = 3.4493e-006;
+               hv_cameraparameter[7] = 3.45e-006;
+               hv_cameraparameter[8] = 1197.59;
+               hv_cameraparameter[9] = 1023.32;
+               hv_cameraparameter[10] = 2448;
+               hv_cameraparameter[11] = 2050;
+               xiangjizuobiao(ho_Image1, hv_cameraparameter, &hv_pax, &hv_pay, &hv_paz, &hv_pbx, 
+                              &hv_pby, &hv_pbz);
+			   pax=hv_pax;pay=hv_pay;paz=hv_paz;pbx=hv_pbx;pby=hv_pby;pbz=hv_pbz;
+			  tst2.Format(_T("%.5f"),pax);tstr2+=tst2+' ';
+			  tst2.Format(_T("%.5f"),pay);tstr2+=tst2+' ';
+	          tst2.Format(_T("%.5f"),paz);tstr2+=tst2+' ';
+			  tst2.Format(_T("%.5f"),pbx);tstr2+=tst2+' ';
+			  tst2.Format(_T("%.5f"),pby);tstr2+=tst2+' ';
+	          tst2.Format(_T("%.5f"),pbz);tstr2+=tst2+' ';
+			  pointer1->SetDlgItemText(IDC_EDIT20,tstr2);
+			  tstr2="";
+
+		    }
+		   GetImageSize(ho_Image1, &hv_Width1, &hv_Height1);
+		   SetPart(hv_WindowHandle1, 0, 0,hv_Height1, hv_Width1 );
+           HDevWindowStack::Push(hv_WindowHandle1);
+           DispObj(ho_Image1, hv_WindowHandle1); 
+           //Sleep(2000);//非注释后会造成卡顿
+	       ho_Image1.GenEmptyObj();
+	    }
+     }
+	catch(HException &except)
+     {
+	    AfxMessageBox(CString(except.ErrorMessage())); 
+     }
+	return 0;
+}
+
+void Cs6Dlg::OnBnClickedztxj()
+{
+	// TODO: 在此添加控件通知处理程序代码
+	if(kqxjthread)
+	{
+	if(!threadpause)
+	{
+		kqxjthread->SuspendThread();//挂起、暂停线程
+		threadpause=true;
+	}
+	}
+}
+
+void Cs6Dlg::OnBnClickedgbxj()
+{
+	// TODO: 在此添加控件通知处理程序代码
+	if(kqxjthread)
+	{
+		threadpause=false;
+		::PostThreadMessageA(kqxjthread->m_nThreadID,WM_QUIT,0,0);
+	}
+}
+
+void Cs6Dlg::OnBnClickedquxian()//最终绘曲线
+{
+	// TODO: 在此添加控件通知处理程序代码
+	num=spointx.size();
+	if(num==0)
+		AfxMessageBox(_T("无绘制点"));
+	else
+	{
+	mwArray fx(1,num,mxDOUBLE_CLASS);
+    mwArray fy(1,num,mxDOUBLE_CLASS);
+    mwArray fz(1,num,mxDOUBLE_CLASS);
+	for(int i=0;i<num;i++)
+	{
+		   fx(1,i+1)=spointx.at(i);
+		   fy(1,i+1)=spointy.at(i);
+		   fz(1,i+1)=spointz.at(i);
+	}
+	fquxian(fx,fy,fz);
+	CString path2(_T("C:\\Users\\Administrator\\Desktop\\capture\\maybeuseful\\2.bmp"));
+	CImage image2;
+	image2.Load(path2);
+	CRect rec2,rep2;
+	::SetForegroundWindow(this->m_hWnd);//对话框始终最前
+	CWnd *pwnd2=GetDlgItem(IDC_SMQUXIAN);//获取控件句柄
+	pwnd2->GetClientRect(rec2);             //指向区域
+	CDC *pdc2=GetDlgItem(IDC_SMQUXIAN)->GetDC();//获取picture的DC
+	SetStretchBltMode(pdc2->m_hDC,STRETCH_HALFTONE);//设置在指定设备内容中的伸展模式，解决位图失真
+	rep2=CRect(rec2.TopLeft(),CSize((int)rec2.Width(),(int)rec2.Height()));
+	image2.Draw(pdc2->m_hDC,rep2);
+	image2.Destroy();
+	pwnd2->ReleaseDC(pdc2);
+	spointx.erase(spointx.begin(),spointx.end());
+	spointy.erase(spointy.begin(),spointy.end());
+	spointz.erase(spointz.begin(),spointz.end());
+	}
 }
