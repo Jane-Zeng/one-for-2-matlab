@@ -17,6 +17,8 @@
 #include "fzuobiao.h"
 #include "fquxian.h"
 #include <HalconCpp.h>
+#include "nextpoint.h"
+#pragma comment(lib,"nextpoint.lib")
 #pragma comment(lib,"fquxian.lib")
 #pragma comment(lib,"fzuobiao.lib")
 #pragma comment(lib,"sanxi.lib")
@@ -159,6 +161,11 @@ BOOL Cs6Dlg::OnInitDialog()
 		cout<<"could not initialize fquxian!"<<endl;
 		exit(0);
 	}
+	if(!nextpointInitialize())
+	{
+		cout<<"could not initialize nextpoint!"<<endl;
+		exit(0);
+	}
 	return TRUE;  // 除非将焦点设置到控件，否则返回 TRUE
 }
 
@@ -261,7 +268,7 @@ void Cs6Dlg::OnBnClickeddkck()
 	m_comm.put_PortOpen(TRUE);//打开串口    
     m_comm.put_Settings(_T("115200,n,8,1")); 
     m_comm.put_InputMode(1);  // 以二进制方式检取数据   
-    m_comm.put_RThreshold(2); //参数1表示每当串口接收缓冲区中有多于或等于1个字符时将引发一个接收数据的OnComm事件   
+    m_comm.put_RThreshold(1); //参数1表示每当串口接收缓冲区中有多于或等于1个字符时将引发一个接收数据的OnComm事件   
     m_comm.put_InputLen(0); //设置当前接收区数据长度为0，表示全部读取 
     m_comm.get_Input();//先预读缓冲区以清除残留数据    
 	
@@ -823,6 +830,7 @@ void Cs6Dlg::OnBnClickedxjwc()
 
 CString rstr1,rstr2,rstr3,rst1,rst2,rst3,rs[16];
 CString rteststr;
+CString jiaodu;
 	mwArray pa(1,3,mxDOUBLE_CLASS);
 	mwArray pb(1,3,mxDOUBLE_CLASS);
 	mwArray Q(1,6,mxDOUBLE_CLASS);
@@ -831,11 +839,13 @@ CString rteststr;
 	mwArray FY(1,1,mxDOUBLE_CLASS);
 	mwArray FZ(1,1,mxDOUBLE_CLASS);
 	mwArray ctw(4,4,mxDOUBLE_CLASS);
+	mwArray nq(1,6,mxDOUBLE_CLASS);
 vector<double> spointx;
 vector<double> spointy;
 vector<double> spointz;
 int num;
 double paa[3],pbb[3],p[6],q[6];
+double J[6];
 double x,y,z;
 bool rthread=true;
 CWinThread *jqrzdthread;
@@ -900,8 +910,29 @@ UINT Cs6Dlg::jqrzdthd(LPVOID BParam)
 	          rst3.Format(_T("%.5f"),z);rstr3+=rst3+' ';
 			  pointer2->SetDlgItemText(IDC_EDIT21,rstr3);
 			  rstr3="";
-	      }
-		Sleep(1);
+			  nextpoint(1,nq,Q,FX,FY);
+			  nq.GetData(J,6);
+			  
+			  jiaodu.Format(_T("G00 J1=%.4f J2=%.4f J3=%.4f J4=%.4f J5=%.4f J6=%.4f"),J[0],J[1],J[2],J[3],J[4],J[5]);
+			  pointer2->m_comm.put_OutBufferCount(0);
+              pointer2->m_comm.put_Output(COleVariant(jiaodu+"\r\n"));
+		  }
+			  CString ns,ls;
+	          int i=pointer2->m_editjsq.GetLineCount();
+	          int llen=pointer2->m_editjsq.LineLength(pointer2->m_editjsq.LineIndex(i-1));
+	          pointer2->m_editjsq.GetLine(i-1,ns.GetBuffer(llen),llen);
+	          ns.ReleaseBuffer();
+	          ls.Format(_T("%s"),ns);
+		      if(ls=="%")
+		       {
+		          CByteArray sjhexdata;
+	              sjhexdata.Add(0x30);
+	              sjhexdata.Add(0x10);
+	              sjhexdata.Add(0x14);
+	              pointer2->m_comm.put_OutBufferCount(0);//清空发送缓冲区
+	              pointer2->m_comm.put_Output(COleVariant(sjhexdata));
+		       }
+		Sleep(10);
 	  }
     return 0;
 }
@@ -924,7 +955,7 @@ void xiangjizuobiao (HObject ho_image, HTuple hv_cameraparameter, HTuple *hv_pax
 
   GetImageSize(ho_image, &hv_Width, &hv_Height);
   MeanImage(ho_image, &ho_ImageMean, 151, 5);
-  Threshold(ho_ImageMean, &ho_Region, 170, 255);
+  Threshold(ho_ImageMean, &ho_Region, 227, 255);
   ErosionCircle(ho_Region, &ho_RegionErosion, 12.5);
   ReduceDomain(ho_image, ho_RegionErosion, &ho_ImageReduced);
   Skeleton(ho_RegionErosion, &ho_Skeleton);
@@ -1000,7 +1031,7 @@ UINT Cs6Dlg::kqxjthd(LPVOID AParam)
            GrabImageAsync(&ho_Image1, hv_AcqHandle1, -1);
 
 		   pointer1->GetDlgItem(IDC_EDIT19)->GetWindowTextW(teststr);
-		   if(teststr!=""&&bool(jqrzdthread))
+		   if(teststr!=""&&jqrzdthread)
 		    {
 			   //hv_filename = ("C:/Users/Administrator/Desktop/capture/maybeuseful/t1.png");
 			 //读关节角
@@ -1012,18 +1043,18 @@ UINT Cs6Dlg::kqxjthd(LPVOID AParam)
 	            }
                WriteImage(ho_Image1,"png",0,"test1");
 			   pointer1->SetDlgItemText(IDC_EDIT19,_T(""));
-			   ReadImage(&ho_Image1, "test1");
+			   //ReadImage(&ho_Image1, "test1");
 			   hv_cameraparameter.Clear();
-               hv_cameraparameter[0] = 0.0281691;
-               hv_cameraparameter[1] = 108.284;
-               hv_cameraparameter[2] = -2.92415e+006;
-               hv_cameraparameter[3] = 6.04338e+010;
-               hv_cameraparameter[4] = 0.0614391;
-               hv_cameraparameter[5] = -0.0131927;
-               hv_cameraparameter[6] = 3.4493e-006;
+               hv_cameraparameter[0] = 0.0278122;
+               hv_cameraparameter[1] = 113.168;
+               hv_cameraparameter[2] = -4.19092e+006;
+               hv_cameraparameter[3] = 9.90622e+010;
+               hv_cameraparameter[4] = 0.0651972;
+               hv_cameraparameter[5] = -0.0351618;
+               hv_cameraparameter[6] = 3.45107e-006;
                hv_cameraparameter[7] = 3.45e-006;
-               hv_cameraparameter[8] = 1197.59;
-               hv_cameraparameter[9] = 1023.32;
+               hv_cameraparameter[8] = 1216.4;
+               hv_cameraparameter[9] = 1023.43;
                hv_cameraparameter[10] = 2448;
                hv_cameraparameter[11] = 2050;
                xiangjizuobiao(ho_Image1, hv_cameraparameter, &hv_pax, &hv_pay, &hv_paz, &hv_pbx, 
